@@ -128,6 +128,7 @@ namespace Raven.Server.Storage.Schema.Updates.Documents
                     if (isSharded)
                     {
                         step.WriteTx.Owner = context;
+                        step.WriteTx.GetBucketFor = ShardedDocumentDatabase.CastToShardedDocumentDatabase(context.DocumentDatabase).GetBucketFor;
                         step.WriteTx.OnBeforeCommit += ((ShardedDocumentsStorage)step.DocumentsStorage).OnBeforeCommit;
                         step.WriteTx.LowLevelTransaction.OnRollBack += ((ShardedDocumentsStorage)step.DocumentsStorage).OnFailure;
                     }
@@ -179,6 +180,7 @@ namespace Raven.Server.Storage.Schema.Updates.Documents
                         step.Commit(context);
                         step.RenewTransactions();
                         step.WriteTx.Owner = null;
+                        step.WriteTx.GetBucketFor = null;
                         step.WriteTx.OnBeforeCommit -= ((ShardedDocumentsStorage)step.DocumentsStorage).OnBeforeCommit;
                         step.WriteTx.LowLevelTransaction.OnRollBack -= ((ShardedDocumentsStorage)step.DocumentsStorage).OnFailure;
                     }

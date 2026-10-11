@@ -39,6 +39,7 @@ namespace Voron.Impl.Compaction
             StorageEnvironmentOptions.DirectoryStorageEnvironmentOptions compactOptions,
             Action<StorageCompactionProgress> progressReport = null,
             Action<string, TableSchema> modifyTableSchema = null,
+            BucketResolver getBucketFor = null,
             CancellationToken token = default(CancellationToken))
         {
             if (srcOptions.IncrementalBackupEnabled)
@@ -52,7 +53,7 @@ namespace Voron.Impl.Compaction
             using (var existingEnv = new StorageEnvironment(srcOptions))
             using (var compactedEnv = new StorageEnvironment(compactOptions))
             {
-                CopyTrees(existingEnv, compactedEnv, modifyTableSchema, progressReport, token);
+                CopyTrees(existingEnv, compactedEnv, modifyTableSchema, getBucketFor, progressReport, token);
 
                 compactedEnv.FlushLogToDataFile();
                 bool synced;
@@ -98,9 +99,10 @@ namespace Voron.Impl.Compaction
             }
         }
 
-        private static void CopyTrees(StorageEnvironment existingEnv, StorageEnvironment compactedEnv, 
+        private static void CopyTrees(StorageEnvironment existingEnv, StorageEnvironment compactedEnv,
             Action<string, TableSchema> modifyTableSchema,
-            Action<StorageCompactionProgress> progressReport, 
+            BucketResolver getBucketFor,
+            Action<StorageCompactionProgress> progressReport,
             CancellationToken token)
         {
             var context = new TransactionPersistentContext(true);
@@ -186,8 +188,8 @@ namespace Voron.Impl.Compaction
                             copiedTrees = CopyFixedSizeTreeFromRoot(compactedEnv, progressReport, txr, rootIterator, treeName, copiedTrees, totalTreesCount, context, token);
                             break;
                         case RootObjectType.Table:
-                            copiedTrees = CopyTableTree(compactedEnv, modifyTableSchema, 
-                                progressReport, txr, treeName, copiedTrees, 
+                            copiedTrees = CopyTableTree(compactedEnv, modifyTableSchema, getBucketFor,
+                                progressReport, txr, treeName, copiedTrees,
                                 totalTreesCount, context, token);
                             break;
                         default:
@@ -449,6 +451,7 @@ namespace Voron.Impl.Compaction
 
         private static long CopyTableTree(StorageEnvironment compactedEnv,
             Action<string, TableSchema> modifyTableSchema,
+            BucketResolver getBucketFor,
             Action<StorageCompactionProgress> progressReport,
             Transaction txr, string treeName, long copiedTrees, long totalTreesCount,
             TransactionPersistentContext context, CancellationToken token)
@@ -489,6 +492,8 @@ namespace Voron.Impl.Compaction
                 using(var innerTxr = txr.LowLevelTransaction.Environment.ReadTransaction())
                 using (var txw = compactedEnv.WriteTransaction(context))
                 {
+                    txw.GetBucketFor = getBucketFor;
+
                     long transactionSize = 0L;
 
                     Table inputTable = innerTxr.OpenTable(schema, treeName, prefetch: true);

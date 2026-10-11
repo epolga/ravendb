@@ -20,6 +20,8 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Voron.Impl
 {
+    public delegate int BucketResolver(ReadOnlySpan<byte> lowerId);
+
     public sealed unsafe class Transaction : IDisposable
     {
         public LowLevelTransaction LowLevelTransaction
@@ -29,6 +31,8 @@ namespace Voron.Impl
         }
 
         public object Owner;
+
+        public BucketResolver GetBucketFor;
 
         public ByteStringContext Allocator => _lowLevelTransaction.Allocator;
 
